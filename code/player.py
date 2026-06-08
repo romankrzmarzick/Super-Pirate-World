@@ -178,14 +178,13 @@ class Player(pg.sprite.Sprite):
                 else:
                     self.state = 'jump' if self.dir.y < 0 else 'fall'
 
-
     def animate(self, dt):
         self.frame_index += ANIMATION_SPEED * dt
         if self.state == 'attack' and self.frame_index >= len(self.frames[self.state]):
             self.state = "idle"
         self.image = self.frames[self.state][(int(self.frame_index) % len(self.frames[self.state]))]
         self.image = self.image if self.facing_right else pg.transform.flip(self.image, True, False)
-
+    
         if self.attacking and self.frame_index > len(self.frames[self.state]):
             self.attacking = False
 
