@@ -187,7 +187,7 @@
   <object id="80" name="skull" gid="53" x="704" y="64" width="64" height="64"/>
  </objectgroup>
  <objectgroup id="6" name="Enemies">
-  <object id="36" name="shell" gid="224" x="192" y="384" width="76" height="46">
+  <object id="36" name="shell" gid="2147483872" x="192" y="384" width="76" height="46">
    <properties>
     <property name="reverse" type="bool" value="true"/>
    </properties>

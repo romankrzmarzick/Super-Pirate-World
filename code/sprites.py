@@ -1,7 +1,5 @@
-
-from typing import Any
-
 from settings import * 
+from math import sin, cos, radians
 
 class Sprite(pg.sprite.Sprite):
     def __init__(self, pos, surf=pg.Surface((TILE_SIZE, TILE_SIZE)), groups=(), z=Z_LAYERS["main"]):
@@ -26,16 +24,14 @@ class AnimatedSprite(Sprite):
 
 
 class MovingSprite(AnimatedSprite):
-    def __init__(self, name, frames, groups, start_pos, end_pos, move_dir, speed, flip=False):
+    def __init__(self, frames, groups, start_pos, end_pos, move_dir, speed, flip=False):
         super().__init__(start_pos, frames, groups)
         # // rect alignment
         if move_dir == "x":
             self.rect.midleft = start_pos
         else:
             self.rect.midtop = start_pos
-        
-        self.name = name
-
+    
         # // path
         self.rect.center = start_pos
         self.start_pos = start_pos
@@ -50,9 +46,6 @@ class MovingSprite(AnimatedSprite):
         self.flip = flip
 
         self.reverse = {"x" : False, "y" : False}
-
-    def __str__(self):
-        return self.name
 
     def check_border(self):
         # // border rules
@@ -83,4 +76,35 @@ class MovingSprite(AnimatedSprite):
         self.check_border()
         self.animate(dt)
         if self.flip:
-            pg.transform.flip(self.image, flip_x=self.reverse["x"], flip_y=self.reverse["y"])
+            self.image = pg.transform.flip(self.image, flip_x=self.reverse["x"], flip_y=self.reverse["y"])
+
+class Spike(Sprite):
+    def __init__(self, pos, surf, groups, radius, speed, start_angle, end_angle, z=Z_LAYERS["main"]):
+        super().__init__(pos, surf, groups, z)
+        self.center = pos
+        self.radius = radius
+        self.speed = speed
+        self.start_angle = start_angle
+        self.end_angle = end_angle
+        self.angle = self.start_angle
+        self.direction = 1
+
+        y = self.center[1] + sin(radians(self.angle)) * self.radius
+        x = self.center[0] + cos(radians(self.angle)) * self.radius
+
+        super().__init__((x, y), surf, groups, z)
+
+    def check_angle(self):
+        flip_dir = False
+        if self.angle > self.end_angle: flip_dir = True
+        elif self.angle < self.start_angle: flip_dir = True
+        
+        if flip_dir: self.direction *= -1
+
+    def update(self, dt):
+        self.check_angle()
+        self.angle += self.speed * self.direction * dt
+        y = self.center[1] + sin(radians(self.angle)) * self.radius
+        x = self.center[0] + cos(radians(self.angle)) * self.radius
+        self.rect.center = (x, y)
+
