@@ -1,4 +1,4 @@
-# Super-Pirate-World
+# Pirate Platformer
 Project files for a YouTube tutorial on a platformer game
 Video can be found here: https://youtu.be/WViyCAa6yLI
 Created by Christian Koch (Clear Code)
