@@ -1,16 +1,96 @@
 from settings import *
+from sprites import Sprite, Cloud
+from random import choice, randint
+from time_track import Timer
 
 class AllSprites(pg.sprite.Group):
-    def __init__(self):
+    def __init__(self, width, height, clouds, horizon_line, bg_tile=None, top_limit=None):
         super().__init__()
         self.display_surface = pg.display.get_surface()
         self.offset = vector()
+        self.width = width * TILE_SIZE
+        self.height = height * TILE_SIZE
+        self.clouds = clouds
+        self.horizon_line = horizon_line
 
-    def draw(self, target_pos):
+        self.borders = {'left' : 0, 'right' : -self.width + WINDOW_WIDTH, 'bottom' : -self.height + WINDOW_HEIGHT, 'top' : top_limit}
+        self.sky = not bg_tile
+
+        if bg_tile:
+            for col in range(width):
+                for row in range(-int(top_limit / TILE_SIZE) - 1, height):
+                    x, y = col * TILE_SIZE, row * TILE_SIZE
+                    Sprite((x, y), bg_tile, self, -1)
+        else: # sky
+
+            self.large_cloud = clouds['large']
+            self.small_clouds = clouds['small']
+            self.cloud_direction = -1
+
+            
+            self.large_cloud_speed = 50
+            self.large_cloud_x = 0
+            self.large_cloud_tiles = int(self.width / self.large_cloud.get_width()) + 2
+            self.large_cloud_width, self.large_cloud_height = self.large_cloud.get_size()
+
+            # small clouds
+            self.cloud_timer = Timer(3500, self.spawn_cloud, repeat=True, autostart=True)
+            self.small_cloud_speed = 60
+
+
+            for cloud in range(10):
+                pos = (randint(0, self.width), randint(self.borders['top'], self.horizon_line))
+                surf = choice(self.small_clouds)
+                Cloud(self.cloud_direction, self.small_cloud_speed, pos, surf, self)
+
+    def spawn_cloud(self):
+        pos = (randint(self.width + 250, self.width + 500), randint(self.borders['top'], self.horizon_line))
+        surf = choice(self.small_clouds)
+
+        Cloud(
+            cloud_dir=self.cloud_direction,
+            cloud_speed=self.small_cloud_speed,
+            pos=pos,
+            surf=surf,
+            groups=self,
+        )
+
+
+            
+    def draw_sky(self):
+        self.display_surface.fill('#ddc6a1')
+        horizon_pos = self.horizon_line + self.offset.y
+        sea_rect = pg.FRect(0, horizon_pos, WINDOW_WIDTH, WINDOW_HEIGHT - horizon_pos)
+        pg.draw.rect(self.display_surface, '#92a9ce', sea_rect)
+
+        # horizon line
+        pg.draw.line(self.display_surface, '#f5f1de', (0, horizon_pos), (WINDOW_WIDTH, horizon_pos), 4)
+
+    def draw_large_cloud(self, dt):
+        self.large_cloud_x += self.large_cloud_speed * dt * self.cloud_direction
+        if self.large_cloud_x <= -self.large_cloud_width: self.large_cloud_x = 0
+        for claud in range(self.large_cloud_tiles):
+            left = self.large_cloud_x + self.large_cloud_width * claud  + self.offset.x
+            top = self.horizon_line - self.large_cloud_height + self.offset.y
+            self.display_surface.blit(self.large_cloud, (left,top))
+
+    def camera_constraint(self):
+        self.offset.x = self.offset.x if self.offset.x < self.borders['left'] else 0
+        self.offset.x = self.offset.x if self.offset.x > self.borders['right'] else self.borders['right']
+        self.offset.y = self.offset.y if self.offset.y > self.borders['bottom'] else self.borders['bottom']
+        self.offset.y = self.offset.y if self.offset.y < self.borders['top'] else self.borders['top']
+
+    def draw(self, target_pos, dt):
         self.offset.x = -(target_pos[0] - WINDOW_WIDTH / 2)
         self.offset.y = -(target_pos[1] - WINDOW_HEIGHT / 2)
-           
+        self.camera_constraint()
+
+        if self.sky:
+            self.draw_sky()
+            self.draw_large_cloud(dt)
+            self.cloud_timer.update()
        
         for sprite in sorted(self, key=lambda sprite: sprite.z):
             self.display_surface.blit(sprite.image, (sprite.rect.topleft + self.offset))
-            
+
+

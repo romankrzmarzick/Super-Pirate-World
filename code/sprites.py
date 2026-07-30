@@ -22,6 +22,39 @@ class AnimatedSprite(Sprite):
     def update(self, dt):
         self.animate(dt)
 
+class Item(AnimatedSprite):
+    def __init__(self, item_type, pos, frames, groups, storage):
+        super().__init__(pos, frames, groups)
+        self.rect.center = pos
+        self.item_type = item_type
+        self.storage = storage
+
+    def activate(self):
+        if self.item_type == 'gold':
+            self.storage.coins += 5
+        if self.item_type == 'silver':
+            self.storage.coins += 1
+        if self.item_type == 'diamond':
+            self.storage.coins += 20
+        if self.item_type == 'skull':
+            self.storage.coins += 50
+        if self.item_type == 'potion':
+            self.storage.health += 1
+        
+
+class ParticleEffectSprite(AnimatedSprite):
+    def __init__(self, pos, frames, groups):
+        super().__init__(pos, frames, groups)
+        self.rect.center = pos
+        self.z = Z_LAYERS["fg"]
+
+    def animate(self, dt):
+        self.frame_index += self.animation_speed * dt
+        if self.frame_index < len(self.frames):
+            self.image = self.frames[int(self.frame_index)]
+        else:
+            self.kill()
+        
 
 class MovingSprite(AnimatedSprite):
     def __init__(self, frames, groups, start_pos, end_pos, move_dir, speed, flip=False):
@@ -108,3 +141,18 @@ class Spike(Sprite):
         x = self.center[0] + cos(radians(self.angle)) * self.radius
         self.rect.center = (x, y)
 
+class Cloud(Sprite):
+    def __init__(self, cloud_dir, cloud_speed, pos, surf, groups, z=Z_LAYERS['clouds']):
+        super().__init__(pos, surf, groups)
+        self.cloud_speed = cloud_speed
+        self.cloud_dir = cloud_dir
+        self.z = z
+        self.rect.midbottom = pos
+
+    def move(self, dt):
+        self.rect.x += self.cloud_speed * dt * self.cloud_dir
+
+    def update(self, dt):
+        self.move(dt)
+        if self.rect.right <= 0:
+            self.kill()

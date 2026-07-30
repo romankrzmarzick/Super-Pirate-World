@@ -1,11 +1,13 @@
 from settings import * 
 from time_track import Timer
+from math import sin
 
 class Player(pg.sprite.Sprite):
-    def __init__(self, pos, groups, collision_sprites, semi_collidables, frames):
+    def __init__(self, pos, groups, collision_sprites, semi_collidables, frames, storage):
         # // setup
         super().__init__(groups)
         self.z = Z_LAYERS["main"]
+        self.storage = storage
 
         # // image
         self.frames, self.frame_index = frames, 0
@@ -36,7 +38,8 @@ class Player(pg.sprite.Sprite):
             'wall jump': Timer(400),
             'wall slide block' : Timer(250),
             'platform skip' : Timer(100),
-            'attack_cooldown' : Timer(600)
+            'attack_cooldown' : Timer(600),
+            'hit' : Timer(400),
         } 
 
     def input(self):
@@ -188,6 +191,18 @@ class Player(pg.sprite.Sprite):
         if self.attacking and self.frame_index > len(self.frames[self.state]):
             self.attacking = False
 
+    def get_damage(self):
+        if not self.timers['hit'].active:
+            self.storage.health -= 1
+            self.timers['hit'].activate()
+
+    def flicker(self):
+        if self.timers["hit"].active and sin(pg.time.get_ticks() * 100) >= 0:
+            white_mask = pg.mask.from_surface(self.image)
+            white_surf = white_mask.to_surface()
+            white_surf.set_colorkey((0,0,0))
+            self.image = white_surf
+
 
     def update(self, dt):
         self.old_rect = self.hitbox_rect.copy()
@@ -198,3 +213,5 @@ class Player(pg.sprite.Sprite):
         self.check_contact()    
         self.get_state()
         self.animate(dt)
+
+        self.flicker()

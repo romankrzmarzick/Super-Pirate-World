@@ -21,7 +21,7 @@ def import_folder_dict(*path):
         for image_name in image_names:
             full_path = join(folder_path, image_name)
             surf = pg.image.load(full_path).convert_alpha()
-            frames[image_name.split(".")[0]]
+            frames[image_name.split(".")[0]] = surf
 
     return frames
 

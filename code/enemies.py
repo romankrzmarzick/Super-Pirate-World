@@ -1,5 +1,3 @@
-from typing import Any
-
 from settings import *
 from random import choice
 from time_track import Timer
@@ -16,8 +14,13 @@ class Tooth(pg.sprite.Sprite):
 
         self.speed = 100
         self.detect_rects = {"edge" : False, "wall" : False}
-       
 
+        self.hit_timer = Timer(415)
+       
+    def reverse(self):
+        if not self.hit_timer.active:
+            self.direction *= -1
+            self.hit_timer.activate()
 
     def contact_check(self):
         wall_rect = pg.Rect(self.rect.center - vector(-1, 0), (self.rect.width + 2, 1))
@@ -32,6 +35,8 @@ class Tooth(pg.sprite.Sprite):
 
 
     def update(self, dt):
+        self.hit_timer.update()
+
         self.frame_index += ANIMATION_SPEED * dt
         self.image = self.frames[int(self.frame_index % len(self.frames))]
         self.image = pg.transform.flip(self.image, flip_x=True, flip_y=False) if self.direction == -1 else self.image
@@ -111,12 +116,19 @@ class Pearl(pg.sprite.Sprite):
         self.speed = speed
         self.z = Z_LAYERS["main"]
 
-        self.timers = {"lifetime" : Timer(4000, self.kill_sprite, autostart=True)}
+        self.timers = {"lifetime" : Timer(4000, self.kill_sprite, autostart=True), "reverse_timer" : Timer(415)}
         
         self.pearl = True
 
+        
+
     def kill_sprite(self):
         self.kill()
+
+    def reverse(self):
+        if not self.timers["reverse_timer"].active:
+            self.direction *= -1
+            self.timers["reverse_timer"].activate()
 
     def move(self, dt):
         self.rect.x += self.speed * dt * self.direction
