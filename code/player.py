@@ -2,8 +2,8 @@ from settings import *
 from time_track import Timer
 from math import sin
 
-class Player(pg.sprite.Sprite):
-    def __init__(self, pos, groups, collision_sprites, semi_collidables, frames, storage):
+class Player(pygame.sprite.Sprite):
+    def __init__(self, pos, groups, collision_sprites, semi_collidables, frames, storage, player_audio):
         # // setup
         super().__init__(groups)
         self.z = Z_LAYERS["main"]
@@ -42,26 +42,31 @@ class Player(pg.sprite.Sprite):
             'hit' : Timer(400),
         } 
 
+        # audio 
+        self.attack_sound = player_audio['attack']
+        self.jump_sound = player_audio['jump']
+        self.damage_sound = player_audio['damage']
+
     def input(self):
-        keys = pg.key.get_pressed()
+        keys = pygame.key.get_pressed()
         input_vector = vector()
         
         if not self.timers["wall jump"].active:
-            if keys[pg.K_RIGHT]:
+            if keys[pygame.K_RIGHT]:
                 input_vector.x += 1
                 self.facing_right = True
-            if keys[pg.K_LEFT]:
+            if keys[pygame.K_LEFT]:
                 input_vector.x -= 1
                 self.facing_right = False
             self.dir.x = input_vector.normalize().x if input_vector else 0  
         
-        if keys[pg.K_SPACE]:
+        if keys[pygame.K_SPACE]:
             self.attack()
 
-        if keys[pg.K_UP]:
+        if keys[pygame.K_UP]:
             self.jump = True
         
-        if keys[pg.K_DOWN]:
+        if keys[pygame.K_DOWN]:
             self.timers["platform skip"].activate()
 
     def attack(self):
@@ -69,6 +74,7 @@ class Player(pg.sprite.Sprite):
             self.attacking = True
             self.frame_index = 0
             self.timers["attack_cooldown"].activate()
+            self.attack_sound.play()
 
     def move(self, dt):
         self.hitbox_rect.x += self.dir.x * self.speed * dt
@@ -91,6 +97,7 @@ class Player(pg.sprite.Sprite):
             if self.on_surface["floor"]:
                 self.timers["wall slide block"].activate()
                 self.dir.y = -self.jump_height
+                self.jump_sound.play()
                 # // jump stick adjustment
                 self.hitbox_rect.bottom -= 1
             # // wall jump
@@ -115,9 +122,9 @@ class Player(pg.sprite.Sprite):
             self.hitbox_rect.topleft += self.platform.dir * self.platform.speed * dt
 
     def check_contact(self):
-        floor_rect = pg.Rect(self.hitbox_rect.bottomleft, (self.hitbox_rect.width, 2))
-        right_rect = pg.Rect((self.hitbox_rect.topright + vector(0, self.hitbox_rect.height / 4)), (2, self.hitbox_rect.height / 2))
-        left_rect = pg.Rect((self.hitbox_rect.topleft + vector(-2, self.hitbox_rect.height / 4)), (2, self.hitbox_rect.height / 2))
+        floor_rect = pygame.Rect(self.hitbox_rect.bottomleft, (self.hitbox_rect.width, 2))
+        right_rect = pygame.Rect((self.hitbox_rect.topright + vector(0, self.hitbox_rect.height / 4)), (2, self.hitbox_rect.height / 2))
+        left_rect = pygame.Rect((self.hitbox_rect.topleft + vector(-2, self.hitbox_rect.height / 4)), (2, self.hitbox_rect.height / 2))
         
         collide_rects = [sprite.rect for sprite in self.collision_sprites]
         semi_collide_rects = [sprite.rect for sprite in self.semi_collidables]
@@ -186,7 +193,7 @@ class Player(pg.sprite.Sprite):
         if self.state == 'attack' and self.frame_index >= len(self.frames[self.state]):
             self.state = "idle"
         self.image = self.frames[self.state][(int(self.frame_index) % len(self.frames[self.state]))]
-        self.image = self.image if self.facing_right else pg.transform.flip(self.image, True, False)
+        self.image = self.image if self.facing_right else pygame.transform.flip(self.image, True, False)
     
         if self.attacking and self.frame_index > len(self.frames[self.state]):
             self.attacking = False
@@ -195,10 +202,11 @@ class Player(pg.sprite.Sprite):
         if not self.timers['hit'].active:
             self.storage.health -= 1
             self.timers['hit'].activate()
+            self.damage_sound.play()
 
     def flicker(self):
-        if self.timers["hit"].active and sin(pg.time.get_ticks() * 100) >= 0:
-            white_mask = pg.mask.from_surface(self.image)
+        if self.timers["hit"].active and sin(pygame.time.get_ticks() * 100) >= 0:
+            white_mask = pygame.mask.from_surface(self.image)
             white_surf = white_mask.to_surface()
             white_surf.set_colorkey((0,0,0))
             self.image = white_surf

@@ -1,23 +1,43 @@
 from storage import Storage
-from settings import WINDOW_HEIGHT, WINDOW_WIDTH, load_pg, pg, sys, join
+from settings import WINDOW_HEIGHT, WINDOW_WIDTH, load_pygame, pygame, sys, join
 from level import level
 from support import import_folder, import_sub_folders, import_image, import_folder_dict
-from debug import debug
 from ui import UI
+from overworld import Overworld
 
 class Game:
 	def __init__(self):
-		pg.init()
-		self.display_surface = pg.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-		pg.display.set_caption("Pirate")
-		self.clock = pg.time.Clock()
+		pygame.init()
+		self.display_surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+		pygame.display.set_caption("Pirate")
+		self.clock = pygame.time.Clock()
 		self.import_assets()
 		self.ui = UI(self.font, self.ui_frames)
 		self.storage = Storage(self.ui)
 
-		self.tmx_maps = {0: load_pg(join('data', "levels", "omni.tmx"))}
-		self.current_stage = level(self.tmx_maps[0], self.level_frames, self.storage)
+		self.tmx_maps = {i: load_pygame(join('data', "levels", f"{i}.tmx")) for i in range(6)}
 		
+
+		self.tmx_overworld = load_pygame(join('data', 'overworld', 'overworld.tmx'))
+		self.current_stage = level(self.tmx_maps[self.storage.current_level], self.level_frames, self.audio_files, self.storage, self.switch_stage)
+
+		# self.current_stage = Overworld(self.tmx_overworld, self.storage, self.overworld_frames)
+
+	def switch_stage(self, target, unlock=0):
+		if target == 'level':
+			self.current_stage = level(self.tmx_maps[self.storage.current_level], self.level_frames, self.audio_files ,self.storage, self.switch_stage)
+			pass
+		else:
+			if unlock > 0:
+				self.storage.unlocked_level = unlock
+			else:
+				self.storage.health -= 1
+			self.current_stage = Overworld(self.tmx_overworld, self.storage, self.overworld_frames, self.switch_stage)
+			
+	def check_game_over(self):
+		if self.storage.health <= 0:
+			pygame.quit()
+			sys.exit()
 
 	def import_assets(self):
 		self.level_frames = {
@@ -48,25 +68,40 @@ class Game:
 			'small_clouds' : import_folder("graphics", "level", 'clouds', 'small'),
 			'large_cloud' : import_image("graphics", 'level', 'clouds', 'large_cloud'),
 		}	
-		self.font = pg.font.Font(join("graphics", "ui", "runescape_uf.ttf"), 32)
+		self.font = pygame.font.Font(join("graphics", "ui", "runescape_uf.ttf"), 32)
 		self.ui_frames = {
 			'heart' : import_folder('graphics', 'ui', 'heart'),
 			"coin" : import_image("graphics", "ui", "coin"),
+		}
+		self.overworld_frames = {
+			'palms' : import_folder('graphics', 'overworld', 'palm'),
+			'water' : import_folder('graphics', 'overworld', 'water'),
+			'path' : import_folder_dict('graphics', 'overworld', 'path'),
+			'icon' : import_sub_folders('graphics', 'overworld', 'icon')
+		}
+		self.audio_files = {
+			'coin' : pygame.mixer.Sound(join('audio', 'coin.wav')),
+			'attack' : pygame.mixer.Sound(join('audio', 'attack.wav')),
+			'damage' : pygame.mixer.Sound(join('audio', 'damage.wav')),
+			'hit' : pygame.mixer.Sound(join('audio', 'hit.wav')),
+			'jump' : pygame.mixer.Sound(join('audio', 'jump.wav')),
+			'pearl' : pygame.mixer.Sound(join('audio', 'pearl.wav')),
 		}
 		
 	def run(self):
 		while True:
 			dt = self.clock.tick_busy_loop() / 1000
-			for event in pg.event.get():
-				if event.type == pg.QUIT:
-					pg.quit()   
+			for event in pygame.event.get():
+				if event.type == pygame.QUIT:
+					pygame.quit()   
 					sys.exit()
-			
+			self.check_game_over()
+						
 			self.current_stage.run(dt)
 
 			self.ui.update(dt)
 			
-			pg.display.flip()
+			pygame.display.flip()
 
 			
 

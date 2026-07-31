@@ -2,7 +2,7 @@ from settings import *
 from random import choice
 from time_track import Timer
 
-class Tooth(pg.sprite.Sprite):
+class Tooth(pygame.sprite.Sprite):
     def __init__(self, pos, frames, groups, collision_sprites):
         super().__init__(groups)
         self.frames, self.frame_index = frames, 0
@@ -23,9 +23,9 @@ class Tooth(pg.sprite.Sprite):
             self.hit_timer.activate()
 
     def contact_check(self):
-        wall_rect = pg.Rect(self.rect.center - vector(-1, 0), (self.rect.width + 2, 1))
-        if self.direction == -1: floor_rect = pg.FRect((self.rect.bottomleft), (-1, 1))
-        else: floor_rect = pg.FRect((self.rect.bottomright), (100, 100))
+        wall_rect = pygame.Rect(self.rect.center - vector(-1, 0), (self.rect.width + 2, 1))
+        if self.direction == -1: floor_rect = pygame.FRect((self.rect.bottomleft), (-1, 1))
+        else: floor_rect = pygame.FRect((self.rect.bottomright), (100, 100))
         
         self.detect_rects["edge"] = False if floor_rect.collidelist(self.collision_rects) >= 0 else True
         self.detect_rects["wall"] = True if wall_rect.collidelist(self.collision_rects) >= 0 else False
@@ -39,7 +39,7 @@ class Tooth(pg.sprite.Sprite):
 
         self.frame_index += ANIMATION_SPEED * dt
         self.image = self.frames[int(self.frame_index % len(self.frames))]
-        self.image = pg.transform.flip(self.image, flip_x=True, flip_y=False) if self.direction == -1 else self.image
+        self.image = pygame.transform.flip(self.image, flip_x=True, flip_y=False) if self.direction == -1 else self.image
 
         self.contact_check()
         self.reverse_check()
@@ -48,14 +48,14 @@ class Tooth(pg.sprite.Sprite):
         self.rect.x += self.direction * self.speed * dt
         # reverse direction
 
-class Shell(pg.sprite.Sprite):
+class Shell(pygame.sprite.Sprite):
     def __init__(self, pos, frames, groups, reverse, player, create_pearl):
         super().__init__(groups)
         
         if reverse:
             self.frames = {}
             for key, surfs in frames.items():
-                self.frames[key] = [pg.transform.flip(surf, True, False) for surf in surfs]  
+                self.frames[key] = [pygame.transform.flip(surf, True, False) for surf in surfs]  
             self.bullet_direction = -1
 
         else:
@@ -107,7 +107,7 @@ class Shell(pg.sprite.Sprite):
                 self.state = "idle"
                 self.has_fired = False
 
-class Pearl(pg.sprite.Sprite):
+class Pearl(pygame.sprite.Sprite):
     def __init__(self, pos, groups, surf, direction, speed):
         super().__init__(groups)
         self.image = surf

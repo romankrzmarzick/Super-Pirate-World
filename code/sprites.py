@@ -1,11 +1,15 @@
+from typing import Any
+
+from pygame import Surface
+
 from settings import * 
 from math import sin, cos, radians
 
-class Sprite(pg.sprite.Sprite):
-    def __init__(self, pos, surf=pg.Surface((TILE_SIZE, TILE_SIZE)), groups=(), z=Z_LAYERS["main"]):
+class Sprite(pygame.sprite.Sprite):
+    def __init__(self, pos: tuple, surf: pygame.Surface=pygame.Surface((TILE_SIZE, TILE_SIZE)), groups=(), z=Z_LAYERS["main"]):
         super().__init__(groups)
-        self.image = surf
-        self.rect = self.image.get_frect(topleft=pos)
+        self.image: pygame.Surface = surf
+        self.rect: pygame.FRect = self.image.get_frect(topleft=pos)
         self.old_rect = self.rect.copy()
         self.z = z
 
@@ -13,7 +17,7 @@ class AnimatedSprite(Sprite):
     def __init__(self, pos, frames, groups, z=Z_LAYERS["main"], animation_speed=ANIMATION_SPEED):
         self.frames, self.frame_index = frames, 0
         super().__init__(pos, self.frames[self.frame_index], groups, z)
-        self.animation_speed = animation_speed
+        self.animation_speed: int = animation_speed
 
     def animate(self, dt):
         self.frame_index += self.animation_speed * dt
@@ -23,7 +27,7 @@ class AnimatedSprite(Sprite):
         self.animate(dt)
 
 class Item(AnimatedSprite):
-    def __init__(self, item_type, pos, frames, groups, storage):
+    def __init__(self, item_type: str, pos, frames, groups, storage):
         super().__init__(pos, frames, groups)
         self.rect.center = pos
         self.item_type = item_type
@@ -41,7 +45,6 @@ class Item(AnimatedSprite):
         if self.item_type == 'potion':
             self.storage.health += 1
         
-
 class ParticleEffectSprite(AnimatedSprite):
     def __init__(self, pos, frames, groups):
         super().__init__(pos, frames, groups)
@@ -54,7 +57,6 @@ class ParticleEffectSprite(AnimatedSprite):
             self.image = self.frames[int(self.frame_index)]
         else:
             self.kill()
-        
 
 class MovingSprite(AnimatedSprite):
     def __init__(self, frames, groups, start_pos, end_pos, move_dir, speed, flip=False):
@@ -109,7 +111,7 @@ class MovingSprite(AnimatedSprite):
         self.check_border()
         self.animate(dt)
         if self.flip:
-            self.image = pg.transform.flip(self.image, flip_x=self.reverse["x"], flip_y=self.reverse["y"])
+            self.image = pygame.transform.flip(self.image, flip_x=self.reverse["x"], flip_y=self.reverse["y"])
 
 class Spike(Sprite):
     def __init__(self, pos, surf, groups, radius, speed, start_angle, end_angle, z=Z_LAYERS["main"]):
@@ -156,3 +158,89 @@ class Cloud(Sprite):
         self.move(dt)
         if self.rect.right <= 0:
             self.kill()
+
+class Node(pygame.sprite.Sprite):
+    def __init__(self, pos, surf, groups, level, storage, paths) -> None:
+        super().__init__(groups)
+        self.image = surf
+        self.rect = self.image.get_frect(center=(pos[0] + TILE_SIZE / 2, pos[1] + TILE_SIZE / 2))
+        self.z = Z_LAYERS['path']
+        self.level = level
+        self.storage = storage
+        self.paths = paths
+        self.grid_pos = (int(pos[0] / TILE_SIZE), int(pos[1] / TILE_SIZE))
+
+    def can_move(self, direction):
+        if direction in list(self.paths.keys()) and int(self.paths[direction][0][0]) <= self.storage.unlocked_level:
+            return True
+
+class Icon(pygame.sprite.Sprite):
+    def __init__(self, pos, groups, frames) -> None:
+        super().__init__(groups)
+        self.icon = True
+        self.path = None
+        self.direction = 0
+        self.speed = 400
+
+        self.frames, self.frame_index = frames, 0
+        self.state = 'idle'
+        self.image = self.frames[self.state][self.frame_index]
+        self.z = Z_LAYERS['main']
+        self.rect = self.image.get_frect(center=pos)
+
+    def start_move(self, path):
+        self.rect.center = path[0]
+        self.path = path[1:]
+        self.find_path()
+
+    def find_path(self):
+        if self.path:
+            if self.rect.centerx == self.path[0][0]:
+                self.direction = vector(0, 1 if self.path[0][1] > self.rect.centery else -1)
+            else:
+                self.direction = vector(1 if self.path[0][0] > self.rect.centerx else -1, 0)
+        else:
+            self.direction = vector()
+
+    def point_collision(self):
+        if self.direction.y == 1 and self.rect.centery >= self.path[0][1] or \
+           self.direction.y == -1 and self.rect.centery <= self.path[0][1]:
+            self.rect.centery = self.path[0][1]
+            del self.path[0]
+            self.find_path()
+
+        if self.direction.x == 1 and self.rect.centerx >= self.path[0][0] or \
+           self.direction.x == -1 and self.rect.centery <= self.path[0][0]:
+            self.rect.centerx = self.path[0][0]
+            del self.path[0]
+            self.find_path()
+
+    def get_state(self):
+        if self.direction.x == 1:
+            self.state = "right"
+        elif self.direction.x == -1:
+            self.state = 'left'
+        elif self.direction.y == 1:
+            self.state = "down"
+        elif self.direction.y == -1:
+            self.state = 'up'
+        else: 
+            self.state = 'idle'
+
+    def animate(self, dt):
+        self.frame_index += dt * ANIMATION_SPEED
+        self.image = self.frames[self.state][int(self.frame_index) % len(self.frames[self.state])]
+        
+    def update(self, dt) -> None:
+
+        if self.path:
+            self.point_collision()
+            self.rect.center += self.direction * self.speed * dt
+            self.get_state()
+            self.animate(dt)
+
+class PathSprite(Sprite):
+    def __init__(self, pos: tuple, surf: Surface, groups, level, z=Z_LAYERS['path']):
+        super().__init__(pos, surf, groups, Z_LAYERS['path'])
+        self.level = level
+        self.z = z

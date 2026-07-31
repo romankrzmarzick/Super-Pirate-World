@@ -3,16 +3,19 @@ from sprites import Sprite, MovingSprite, AnimatedSprite, Spike, Item, ParticleE
 from player import Player
 from groups import AllSprites
 from enemies import Tooth, Shell, Pearl
+from debug import debug
 
 class level:
-    def __init__(self, tmx_map, level_frames, storage):
-        self.display_surface = pg.display.get_surface()
+    def __init__(self, tmx_map, level_frames, audio_files, storage, switch_stage):
+        self.display_surface = pygame.display.get_surface()
         self.storage = storage
-
+        self.switch_stage = switch_stage
+    
         # level ddata
         self.level_width = tmx_map.width * TILE_SIZE
         self.level_bottom = tmx_map.height * TILE_SIZE
         tmx_level_properties = tmx_map.get_layer_by_name("Data")[0].properties
+        self.level_unlock = tmx_level_properties['level_unlock']
         if tmx_level_properties['bg']:
             bg_tile = level_frames['bg_tiles'][tmx_level_properties['bg']]
             print(bg_tile)
@@ -28,25 +31,39 @@ class level:
             horizon_line=tmx_level_properties['horizon_line']
         )
 
-        self.collision_sprites = pg.sprite.Group()
-        self.semi_collidables = pg.sprite.Group()
-        self.damage_sprites = pg.sprite.Group()
-        self.tooth_sprites = pg.sprite.Group()
-        self.pearl_sprites = pg.sprite.Group()
-        self.item_sprites = pg.sprite.Group()
+        self.collision_sprites = pygame.sprite.Group()
+        self.semi_collidables = pygame.sprite.Group()
+        self.damage_sprites = pygame.sprite.Group()
+        self.tooth_sprites = pygame.sprite.Group()
+        self.pearl_sprites = pygame.sprite.Group()
+        self.item_sprites = pygame.sprite.Group()
 
-        self.setup(tmx_map, level_frames)
-
+    
         #frames
         self.pearl_surf = level_frames["pearl"]
         self.particle_frames = level_frames['particle']
 
+        self.coin_sound = audio_files['coin']
+
+        self.pearl_sound = audio_files['pearl']
+
+        self.attack_sound = audio_files['attack']
+        self.jump_sound = audio_files['jump']
+        self.audio_files = audio_files
+
+        self.hit_sound = audio_files['hit']
+
+        self.damage_sound = audio_files['damage']
+
+        self.setup(tmx_map, level_frames)
+
+
     def setup(self, tmx_map, level_frames):
         # // tiles
-        for layer in ["BG", "Terrian", "FG", "Platforms"]:
+        for layer in ["BG", "Terrain", "FG", "Platforms"]:
             for x, y, image in tmx_map.get_layer_by_name(layer).tiles():
                 groups = [self.all_sprites]
-                if layer == 'Terrian' : groups.append(self.collision_sprites)
+                if layer == 'Terrain' : groups.append(self.collision_sprites)
                 if layer == 'Platforms' : groups.append(self.semi_collidables)
                 match layer:
                     case "BG" : z = Z_LAYERS["bg tiles"]
@@ -72,27 +89,32 @@ class level:
                     collision_sprites=self.collision_sprites,
                     semi_collidables=self.semi_collidables,
                     frames=level_frames['player'],
-                    storage = self.storage
+                    storage = self.storage,
+                    player_audio=self.audio_files
                     )
             else:
                 if obj.name in ("barrel", "crate"):
                     Sprite((obj.x, obj.y), obj.image, (self.all_sprites, self.collision_sprites))
                 else:
+                    groups = self.all_sprites
                     frames = level_frames[obj.name] if not 'palm' in obj.name else level_frames['palms'][obj.name]
-                    if obj.name == "floor_spike" and obj.properties["inverted"]:
-                        flipped_frames = [pg.transform.flip(frame, False, True) for frame in frames]
-                        frames = flipped_frames
-                    AnimatedSprite((obj.x, obj.y), frames, self.all_sprites)
+                    if obj.name == "floor_spike" or obj.name == "saw":
+                        groups = (self.all_sprites, self.damage_sprites)
+                        if obj.name == "floor_spike" and obj.properties["inverted"]:
+                            flipped_frames = [pygame.transform.flip(frame, False, True) for frame in frames]
+                            frames = flipped_frames
+
+                    AnimatedSprite((obj.x, obj.y), frames, groups)
 
             if obj.name == "flag":
-                self.level_finish_rect = pg.FRect((obj.x, obj.y), (obj.width, obj.height))
+                self.level_finish_rect = pygame.FRect((obj.x, obj.y), (obj.width, obj.height))
         # // moving objects          
         for obj in tmx_map.get_layer_by_name("Moving Objects"):
             if obj.name == "spike":
                 Spike(
                     pos = (obj.x + obj.width / 2, obj.y + obj.height / 2),
                     surf = level_frames["spike"],
-                    groups = [self.all_sprites, self.damage_sprites],
+                    groups = self.all_sprites,
                     radius = obj.properties["radius"], 
                     speed = obj.properties["speed"],
                     start_angle = obj.properties["start_angle"],
@@ -130,12 +152,12 @@ class level:
                         y = start_pos[1] - level_frames["saw_chain"].get_height() / 2
                         left, right = int(start_pos[0]), int(end_pos[0])
                         for x in range(left, right, 20):
-                            Sprite((x, y), level_frames["saw_chain"], self.all_sprites, z=Z_LAYERS["bg details"])
+                            Sprite((x, y), level_frames["saw_chain"], (self.all_sprites, self.damage_sprites), z=Z_LAYERS["bg details"])
                     else:
                         x = start_pos[0] - level_frames["saw_chain"].get_width() / 2
                         top, bottom = int(start_pos[1]), int(end_pos[1])
                         for y in range(top, bottom, 20):
-                            Sprite((x, y), level_frames["saw_chain"], self.all_sprites, z=Z_LAYERS["bg details"])
+                            Sprite((x, y), level_frames["saw_chain"], (self.all_sprites, self.damage_sprites), z=Z_LAYERS["bg details"])
                         
         # enemies
         for obj in tmx_map.get_layer_by_name("Enemies"):
@@ -175,12 +197,15 @@ class level:
 
     def create_pearl(self, pos, direction):
         Pearl(pos, (self.all_sprites, self.damage_sprites, self.pearl_sprites), self.pearl_surf, direction, 150)
+        self.pearl_sound.play()
 
     def pearl_collision(self):
         for sprite in self.collision_sprites:
-            sprite = pg.sprite.spritecollide(sprite, self.pearl_sprites, True)
+            sprite = pygame.sprite.spritecollide(sprite, self.pearl_sprites, True)
             if sprite:
                 ParticleEffectSprite(sprite[0].rect.center, self.particle_frames, self.all_sprites)
+
+                
     def hit_collisions(self):
         for sprite in self.damage_sprites:
             if sprite.rect.colliderect(self.player.hitbox_rect):
@@ -191,11 +216,11 @@ class level:
 
     def item_collisions(self):
         if self.item_sprites:
-            item_sprites = pg.sprite.spritecollide(self.player, self.item_sprites, True)
+            item_sprites = pygame.sprite.spritecollide(self.player, self.item_sprites, True)
             if item_sprites:
                 item_sprites[0].activate()
                 ParticleEffectSprite(item_sprites[0].rect.center, self.particle_frames, self.all_sprites)
-                print(item_sprites[0].item_type)
+                self.coin_sound.play()
 
     def attack_collision(self):
 
@@ -204,6 +229,7 @@ class level:
                             self.player.rect.centerx > target.rect.centerx and not self.player.facing_right
             if target.rect.colliderect(self.player.rect) and self.player.attacking and facing_target:
                 target.reverse()
+                self.hit_sound.play()
 
     def check_constraint(self):
         if self.player.hitbox_rect.left <= 0:
@@ -213,11 +239,11 @@ class level:
 
         # bottom border
         if self.player.hitbox_rect.bottom > self.level_bottom:
-            print("death")
+            self.switch_stage('overworld', -1)
 
         # success
         if self.player.hitbox_rect.colliderect(self.level_finish_rect):
-            print("success")
+            self.switch_stage('overworld', self.level_unlock)
 
     def run(self, dt):
         self.display_surface.fill((0, 0, 0))
@@ -229,3 +255,7 @@ class level:
         self.item_collisions()
         self.attack_collision()
         self.check_constraint()
+
+        # debug(f"DIR: {self.player.dir}", 50, WINDOW_WIDTH / 2)
+        # debug(f"SPEED: {self.player.speed}", 50, WINDOW_WIDTH / 2 + 200)
+        # debug(f"FR: {self.player.facing_right}", 50, WINDOW_WIDTH / 2 + 400)

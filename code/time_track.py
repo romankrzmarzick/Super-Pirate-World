@@ -1,12 +1,12 @@
 from pygame.time import get_ticks
 
 class Timer():
-    def __init__(self, duration, func=None, repeat=False, autostart=False):
+    def __init__(self, duration: float | int, func=None, repeat=False, autostart=False):
         self.duration = duration
-        self.repeat = repeat
+        self.repeat: bool = repeat
         self.func = func
-        self.start_time = 0
-        self.active = False
+        self.start_time: float | int = 0
+        self.active: bool = False
         if autostart:
             self.activate()
 

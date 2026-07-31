@@ -3,10 +3,10 @@ from sprites import Sprite, Cloud
 from random import choice, randint
 from time_track import Timer
 
-class AllSprites(pg.sprite.Group):
-    def __init__(self, width, height, clouds, horizon_line, bg_tile=None, top_limit=None):
+class AllSprites(pygame.sprite.Group):
+    def __init__(self, width, height, clouds, horizon_line, bg_tile=None, top_limit: float | None=None):
         super().__init__()
-        self.display_surface = pg.display.get_surface()
+        self.display_surface = pygame.display.get_surface()
         self.offset = vector()
         self.width = width * TILE_SIZE
         self.height = height * TILE_SIZE
@@ -60,11 +60,11 @@ class AllSprites(pg.sprite.Group):
     def draw_sky(self):
         self.display_surface.fill('#ddc6a1')
         horizon_pos = self.horizon_line + self.offset.y
-        sea_rect = pg.FRect(0, horizon_pos, WINDOW_WIDTH, WINDOW_HEIGHT - horizon_pos)
-        pg.draw.rect(self.display_surface, '#92a9ce', sea_rect)
+        sea_rect = pygame.FRect(0, horizon_pos, WINDOW_WIDTH, WINDOW_HEIGHT - horizon_pos)
+        pygame.draw.rect(self.display_surface, '#92a9ce', sea_rect)
 
         # horizon line
-        pg.draw.line(self.display_surface, '#f5f1de', (0, horizon_pos), (WINDOW_WIDTH, horizon_pos), 4)
+        pygame.draw.line(self.display_surface, '#f5f1de', (0, horizon_pos), (WINDOW_WIDTH, horizon_pos), 4)
 
     def draw_large_cloud(self, dt):
         self.large_cloud_x += self.large_cloud_speed * dt * self.cloud_direction
@@ -93,4 +93,31 @@ class AllSprites(pg.sprite.Group):
         for sprite in sorted(self, key=lambda sprite: sprite.z):
             self.display_surface.blit(sprite.image, (sprite.rect.topleft + self.offset))
 
+class WorldSprites(pygame.sprite.Group):
+    def __init__(self, storage):
+        super().__init__()
+        self.display_surface = pygame.display.get_surface()
+        self.storage = storage
+        self.offset = vector()
 
+    def draw(self, target_pos):
+        self.offset.x = -(target_pos[0] - WINDOW_WIDTH / 2)
+        self.offset.y = -(target_pos[1] - WINDOW_HEIGHT / 2)
+
+        # draw bg
+        for sprite in sorted(self, key=lambda sprite: sprite.z):
+            if sprite.z < Z_LAYERS['main']:
+                if sprite.z == Z_LAYERS['path']:
+                    if sprite.level <= self.storage.unlocked_level:
+                        self.display_surface.blit(sprite.image, sprite.rect.topleft + self.offset)
+                else:
+                    self.display_surface.blit(sprite.image, sprite.rect.topleft + self.offset)
+
+        
+        # main layer
+        for sprite in sorted(self, key=lambda sprite: sprite.rect.centery):
+            if sprite.z == Z_LAYERS['main']:
+                if hasattr(sprite, "icon"):
+                    self.display_surface.blit(sprite.image, sprite.rect.topleft + self.offset + vector(0, -28))
+                else:
+                    self.display_surface.blit(sprite.image, sprite.rect.topleft + self.offset)
