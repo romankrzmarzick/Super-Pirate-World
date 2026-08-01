@@ -41,7 +41,7 @@ class Overworld:
         # paths
         self.paths = {}
         for obj in tmx_map.get_layer_by_name("Paths"):
-            positions = [(int(p.x + TILE_SIZE / 2), int(p.y + TILE_SIZE / 2)) for p in obj.points ]
+            positions = [(int(p.x + TILE_SIZE / 2), int(p.y + TILE_SIZE / 2)) for p in obj.points]
             start = obj.properties['start']
             end = obj.properties['end']
             self.paths[end] = {'pos' : positions, 'start' : start}

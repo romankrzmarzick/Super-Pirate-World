@@ -2,7 +2,7 @@ class Storage:
     def __init__(self, ui):
         self.ui = ui
         self._coins: int = 0
-        self._health: int = 5
+        self._health: int = 30
         self.ui.create_hearts(self._health)
 
         self.unlocked_level = 0
